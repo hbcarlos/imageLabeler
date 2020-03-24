@@ -131,10 +131,10 @@ class Photo(QGraphicsScene):
             y = event.scenePos().y()
 
             x = x if x >= 0 else 0
-            x = x if x < self.img.width() else self.img.width()
+            x = x if x < self.img.width() else self.img.width() -1
 
             y = y if y >= 0 else 0
-            y = y if y < self.img.height() else self.img.height()
+            y = y if y < self.img.height() else self.img.height() -1
 
             if step == PERSON :
                 iniX = person['position'][0]
@@ -170,10 +170,10 @@ class Photo(QGraphicsScene):
             y = event.scenePos().y()
 
             x = x if x >= 0 else 0
-            x = x if x < self.img.width() else self.img.width()
+            x = x if x < self.img.width() else self.img.width() -1
 
             y = y if y >= 0 else 0
-            y = y if y < self.img.height() else self.img.height()
+            y = y if y < self.img.height() else self.img.height() -1
 
             if step == PERSON :
                 iniX = person['position'][0]
@@ -316,6 +316,7 @@ class Main(QMainWindow):
 
         listView = QListView()
         listView.clicked[QModelIndex].connect(self.onClicked)
+        listView.keyPressEvent = self.keyPressEvent
         tools.addWidget(listView)
         screen.addLayout(tools, 1)
         
@@ -347,6 +348,8 @@ class Main(QMainWindow):
         elif event.key() == Qt.Key_D :
             self.nextPhoto()
         elif event.key() == Qt.Key_P :
+            self.newPerson()
+        elif event.key() == Qt.Key_Q :
             self.newPerson()
 
     def openFile(self):
@@ -415,12 +418,6 @@ class Main(QMainWindow):
 
         global fileLabels, directory, data, pos, photos
 
-        print("fileLabels:" + fileLabels)
-        print("directory:" + directory)
-        print("data:" + str(data))
-        print("pos:" + str(pos))
-        print("photos:" + str(photos))
-
         try:
             self.statusBar().showMessage("Loading data...")
 
@@ -433,7 +430,7 @@ class Main(QMainWindow):
                 cont = 0
                 first = True
 
-                for file in os.listdir(directory):
+                for file in sorted(os.listdir(directory)) :
                     if re.search('(.jpg|.jpeg|.png|.webp)$', file) :
                         label = data.get(file, None)
 
@@ -456,7 +453,8 @@ class Main(QMainWindow):
                 photos = list(data.keys())
                 pos = cont if cont < len(photos) else 0
                 self.viewPhoto.setScene(Photo(photos[pos], parent=self))
-                self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
+                img = QPixmap(directory + "/" + photos[pos])
+                self.statusBar().showMessage("Photo: %s size: %dx%d %d/%d" % (photos[pos], img.width(), img.height(), pos+1, len(photos)) )
             
             else :
                 self.statusBar().showMessage("Ready...")
@@ -486,7 +484,8 @@ class Main(QMainWindow):
 
             file = open(fileLabels, 'w')
             json.dump(data, file)
-            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
+            img = QPixmap(directory + "/" + photos[pos])
+            self.statusBar().showMessage("Photo: %s size: %dx%d %d/%d" % (photos[pos], img.width(), img.height(), pos+1, len(photos)) )
 
         except FileNotFoundError:
             QMessageBox.question(self, 'Save data', "File " + fileLabels + " not found.", QMessageBox.Ok, QMessageBox.Ok)
@@ -514,7 +513,8 @@ class Main(QMainWindow):
             photos = aux
             pos = 0
             self.viewPhoto.setScene(Photo(photos[pos], parent=self))
-            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
+            img = QPixmap(directory + "/" + photos[pos])
+            self.statusBar().showMessage("Photo: %s size: %dx%d %d/%d" % (photos[pos], img.width(), img.height(), pos+1, len(photos)) )
     
     def allPhotos(self):
         """
@@ -541,8 +541,8 @@ class Main(QMainWindow):
             
             pos = cont if cont < len(photos) else 0
             self.viewPhoto.setScene(Photo(photos[pos], parent=self))
-            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
-        
+            img = QPixmap(directory + "/" + photos[pos])
+            self.statusBar().showMessage("Photo: %s size: %dx%d %d/%d" % (photos[pos], img.width(), img.height(), pos+1, len(photos)) )        
     def previusPhoto(self):
         """
         Function to capture the previus photo action.
@@ -562,7 +562,8 @@ class Main(QMainWindow):
 
             pos = pos - 1 if pos > 0 else len(photos) - 1
             self.viewPhoto.setScene(Photo(photos[pos], parent=self))
-            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
+            img = QPixmap(directory + "/" + photos[pos])
+            self.statusBar().showMessage("Photo: %s size: %dx%d %d/%d" % (photos[pos], img.width(), img.height(), pos+1, len(photos)) )
 
         except TypeError:
             QMessageBox.question(self, 'Previus photo', "No photos", QMessageBox.Ok, QMessageBox.Ok)
@@ -586,7 +587,8 @@ class Main(QMainWindow):
 
             pos = pos + 1 if pos < len(photos) - 1 else 0
             self.viewPhoto.setScene(Photo(photos[pos], parent=self))
-            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
+            img = QPixmap(directory + "/" + photos[pos])
+            self.statusBar().showMessage("Photo: %s size: %dx%d %d/%d" % (photos[pos], img.width(), img.height(), pos+1, len(photos)) )
 
         except TypeError:
             QMessageBox.question(self, 'Next photo', "No photos", QMessageBox.Ok, QMessageBox.Ok)
@@ -613,7 +615,8 @@ class Main(QMainWindow):
         listLabels.removeRow(index.row())
         del data[photos[pos]][index.row()]
         self.viewPhoto.setScene(Photo(photos[pos], parent=self))
-        self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
+        img = QPixmap(directory + "/" + photos[pos])
+        self.statusBar().showMessage("Photo: %s size: %dx%d %d/%d" % (photos[pos], img.width(), img.height(), pos+1, len(photos)) )
 
 if __name__ == '__main__':
     app = QApplication([])
