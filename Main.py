@@ -76,7 +76,7 @@ class Photo(QGraphicsScene):
             txt.setPos(position[0], position[1])
             txt.setDefaultTextColor(Qt.red)
 
-            if person.get('number', None):
+            if person.get('number', None) :
                 number = person['number']['number']
                 numberPosition = person['number']['position']
 
@@ -89,6 +89,10 @@ class Photo(QGraphicsScene):
             else :
                 listLabels.appendRow(QStandardItem(str(i) + ") No number"))
 
+    def keyPressEvent(self, event):
+        super(Photo, self).keyPressEvent(event)
+        self.parent.keyPressEvent(event)
+
     def mousePressEvent(self, event):
         """
         Function to capture mouse press event and obtain the pixel.
@@ -100,10 +104,10 @@ class Photo(QGraphicsScene):
         y = event.scenePos().y()
 
         x = x if x >= 0 else 0
-        x = x if x <= self.img.width() - 20 else self.img.width() - 20
+        x = x if x < self.img.width() - 20 else self.img.width() - 20
 
         y = y if y >= 0 else 0
-        y = y if y <= self.img.height() - 20 else self.img.height() - 20
+        y = y if y < self.img.height() - 20 else self.img.height() - 20
 
         if step == PERSON :
             person = { 'position': [x, y, 0, 0] }
@@ -127,10 +131,10 @@ class Photo(QGraphicsScene):
             y = event.scenePos().y()
 
             x = x if x >= 0 else 0
-            x = x if x <= self.img.width() else self.img.width()
+            x = x if x < self.img.width() else self.img.width()
 
             y = y if y >= 0 else 0
-            y = y if y <= self.img.height() else self.img.height()
+            y = y if y < self.img.height() else self.img.height()
 
             if step == PERSON :
                 iniX = person['position'][0]
@@ -166,10 +170,10 @@ class Photo(QGraphicsScene):
             y = event.scenePos().y()
 
             x = x if x >= 0 else 0
-            x = x if x <= self.img.width() else self.img.width()
+            x = x if x < self.img.width() else self.img.width()
 
             y = y if y >= 0 else 0
-            y = y if y <= self.img.height() else self.img.height()
+            y = y if y < self.img.height() else self.img.height()
 
             if step == PERSON :
                 iniX = person['position'][0]
@@ -218,6 +222,12 @@ class Photo(QGraphicsScene):
                     
                     step = PERSON
                     person = None
+                    graphic = None
+
+                else :
+                    self.removeItem(graphic)
+                    del person['number']
+                    step = DORSAL
                     graphic = None
 
         self.update()
@@ -313,6 +323,32 @@ class Main(QMainWindow):
         widget.setLayout(screen)
         return widget
 
+    def keyPressEvent(self, event):
+        super(Main, self).keyPressEvent(event)
+        
+        if event.key() == Qt.Key_N :
+            self.newFile()
+        elif event.key() == Qt.Key_O :
+            self.openFile()
+        elif event.key() == Qt.Key_L :
+            self.loadData()
+        elif event.key() == Qt.Key_S :
+            self.saveData()
+        elif event.key() == Qt.Key_1 :
+            self.noLabeled()
+        elif event.key() == Qt.Key_2 :
+            self.allPhotos()
+        elif event.key() == Qt.Key_Left :
+            self.previusPhoto()
+        elif event.key() == Qt.Key_Right :
+            self.nextPhoto()
+        elif event.key() == Qt.Key_A :
+            self.previusPhoto()
+        elif event.key() == Qt.Key_D :
+            self.nextPhoto()
+        elif event.key() == Qt.Key_P :
+            self.newPerson()
+
     def openFile(self):
         """
         Function to capture the Open file action.
@@ -322,15 +358,18 @@ class Main(QMainWindow):
         global fileLabels, directory
 
         try:
-            name, _ = QFileDialog.getOpenFileName(self, 'Select file')
+            self.statusBar().showMessage("Opening file...")
+            name, ok = QFileDialog.getOpenFileName(self, 'Select file')
             
-            if name != '' :
+            if ok :
                 fileLabels = name
                 directory = os.path.dirname(fileLabels)
+                self.statusBar().showMessage("Ready...")
                 self.loadData()
             else :
                 fileLabels = None
                 directory = None
+                self.statusBar().showMessage("No file!")
         
         except FileNotFoundError:
             QMessageBox.question(self, 'Open file', "File " + fileLabels + " not found.", QMessageBox.Ok, QMessageBox.Ok)
@@ -346,18 +385,21 @@ class Main(QMainWindow):
         global fileLabels, directory
 
         try:
-            name, _ = QFileDialog.getSaveFileName(self, 'Create file')
+            self.statusBar().showMessage("Creating file...")
+            name, ok = QFileDialog.getSaveFileName(self, 'Create file')
         
-            if name != '' :
+            if ok :
                 fileLabels = name
                 directory = os.path.dirname(fileLabels)
                 file = open(name, 'w')
                 json.dump({}, file)
                 file.close()
+                self.statusBar().showMessage("Ready...")
                 self.loadData()
             else :
                 fileLabels = None
                 directory = None
+                self.statusBar().showMessage("No file!")
         
         except FileNotFoundError:
             QMessageBox.question(self, 'New file', "File " + fileLabels + " not found.", QMessageBox.Ok, QMessageBox.Ok)
@@ -373,7 +415,15 @@ class Main(QMainWindow):
 
         global fileLabels, directory, data, pos, photos
 
+        print("fileLabels:" + fileLabels)
+        print("directory:" + directory)
+        print("data:" + str(data))
+        print("pos:" + str(pos))
+        print("photos:" + str(photos))
+
         try:
+            self.statusBar().showMessage("Loading data...")
+
             if fileLabels and directory :
                 file = open(fileLabels, 'r')
                 data = json.load(file)
@@ -389,20 +439,27 @@ class Main(QMainWindow):
 
                         if label != None :
                             images.remove(file)
+                            
+                            if first and len(label) > 0 :
+                                cont += 1
+                            else :
+                                first = False
+
                         else :
                             data[file] = []
-
-                        if first and label :
-                            cont += 1
-                        else :
                             first = False
+                            
                 
                 for image in list(images) :
                     data.pop(image)
 
-                pos = cont if cont < len(photos) else 0
                 photos = list(data.keys())
+                pos = cont if cont < len(photos) else 0
                 self.viewPhoto.setScene(Photo(photos[pos], parent=self))
+                self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
+            
+            else :
+                self.statusBar().showMessage("Ready...")
 
         except FileNotFoundError:
             QMessageBox.question(self, 'Load data', "File " + fileLabels + " not found.", QMessageBox.Ok, QMessageBox.Ok)
@@ -415,8 +472,11 @@ class Main(QMainWindow):
         Allows us to save the labels in the selected file.
         """
 
-        global fileLabels, directory, data, pos, photos, step, person, graphic
+        global fileLabels, data, pos, photos, step, person, graphic
+
         try:
+            self.statusBar().showMessage('Saving data...')
+
             if person :
                 listLabels.appendRow(QStandardItem(str(len(data[photos[pos]])) + ") No number"))
                 data[photos[pos]].append(person)
@@ -426,6 +486,7 @@ class Main(QMainWindow):
 
             file = open(fileLabels, 'w')
             json.dump(data, file)
+            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
 
         except FileNotFoundError:
             QMessageBox.question(self, 'Save data', "File " + fileLabels + " not found.", QMessageBox.Ok, QMessageBox.Ok)
@@ -438,6 +499,7 @@ class Main(QMainWindow):
         Allows us to show only the no labeled images (does not modify the labels or file labels).
         """
         global data, photos, pos
+        self.statusBar().showMessage('Serching photos...')
         self.saveData()
         
         aux = []
@@ -447,10 +509,12 @@ class Main(QMainWindow):
 
         if len(aux) == 0 :
             QMessageBox.question(self, 'No labeled', "All photos are labeled", QMessageBox.Ok, QMessageBox.Ok)
+            self.statusBar().showMessage('Ready...')
         else :
             photos = aux
             pos = 0
             self.viewPhoto.setScene(Photo(photos[pos], parent=self))
+            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
     
     def allPhotos(self):
         """
@@ -458,12 +522,14 @@ class Main(QMainWindow):
         Allows us to show all photos at the actual folder again.
         """
         global data, photos, pos
+        self.statusBar().showMessage('Searching photos...')
         self.saveData()
         
         photos = list(data.keys())
 
         if len(photos) == 0 :
             QMessageBox.question(self, 'All photos', "No photos", QMessageBox.Ok, QMessageBox.Ok)
+            self.statusBar().showMessage('Ready...')
         else :
             cont = 0
             for image in photos:
@@ -475,7 +541,8 @@ class Main(QMainWindow):
             
             pos = cont if cont < len(photos) else 0
             self.viewPhoto.setScene(Photo(photos[pos], parent=self))
-
+            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
+        
     def previusPhoto(self):
         """
         Function to capture the previus photo action.
@@ -495,6 +562,7 @@ class Main(QMainWindow):
 
             pos = pos - 1 if pos > 0 else len(photos) - 1
             self.viewPhoto.setScene(Photo(photos[pos], parent=self))
+            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
 
         except TypeError:
             QMessageBox.question(self, 'Previus photo', "No photos", QMessageBox.Ok, QMessageBox.Ok)
@@ -518,6 +586,7 @@ class Main(QMainWindow):
 
             pos = pos + 1 if pos < len(photos) - 1 else 0
             self.viewPhoto.setScene(Photo(photos[pos], parent=self))
+            self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
 
         except TypeError:
             QMessageBox.question(self, 'Next photo', "No photos", QMessageBox.Ok, QMessageBox.Ok)
@@ -544,6 +613,7 @@ class Main(QMainWindow):
         listLabels.removeRow(index.row())
         del data[photos[pos]][index.row()]
         self.viewPhoto.setScene(Photo(photos[pos], parent=self))
+        self.statusBar().showMessage("Photo: " + photos[pos] + " " + str(pos+1) + "/" + str(len(photos)))
 
 if __name__ == '__main__':
     app = QApplication([])
